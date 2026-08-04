@@ -90,21 +90,33 @@ const itemsByCategorySlug: Record<
 };
 
 async function seed() {
-  const existing = await db.select().from(menuCategoriesTable).limit(1);
-  if (existing.length > 0) {
-    console.log("Menu already seeded — skipping.");
-    return;
-  }
-
   const categoryIds: Record<string, number> = {};
 
   for (const category of categories) {
-    const [row] = await db
-      .insert(menuCategoriesTable)
-      .values(category)
-      .returning();
-    categoryIds[category.slug] = row.id;
-    console.log(`Category: ${row.name}`);
+    const [existing] = await db
+      .select()
+      .from(menuCategoriesTable)
+      .where(eq(menuCategoriesTable.slug, category.slug))
+      .limit(1);
+
+    if (existing) {
+      await db
+        .update(menuCategoriesTable)
+        .set({
+          name: category.name,
+          description: category.description,
+        })
+        .where(eq(menuCategoriesTable.id, existing.id));
+      categoryIds[category.slug] = existing.id;
+      console.log(`Category upserted: ${category.name}`);
+    } else {
+      const [row] = await db
+        .insert(menuCategoriesTable)
+        .values(category)
+        .returning();
+      categoryIds[category.slug] = row.id;
+      console.log(`Category created: ${row.name}`);
+    }
   }
 
   for (const [slug, items] of Object.entries(itemsByCategorySlug)) {
@@ -112,19 +124,40 @@ async function seed() {
     if (!categoryId) continue;
 
     for (const item of items) {
-      const [row] = await db
-        .insert(menuItemsTable)
-        .values({
-          name: item.name,
-          description: item.description,
-          price: item.price,
-          categoryId,
-          imageUrl: item.imageUrl,
-          available: true,
-          featured: item.featured ?? false,
-        })
-        .returning();
-      console.log(`  Item: ${row.name}`);
+      const [existing] = await db
+        .select()
+        .from(menuItemsTable)
+        .where(eq(menuItemsTable.name, item.name))
+        .limit(1);
+
+      if (existing) {
+        await db
+          .update(menuItemsTable)
+          .set({
+            description: item.description,
+            price: item.price,
+            categoryId,
+            imageUrl: item.imageUrl,
+            available: true,
+            featured: item.featured ?? false,
+          })
+          .where(eq(menuItemsTable.id, existing.id));
+        console.log(`  Item updated: ${item.name} → ${item.imageUrl}`);
+      } else {
+        const [row] = await db
+          .insert(menuItemsTable)
+          .values({
+            name: item.name,
+            description: item.description,
+            price: item.price,
+            categoryId,
+            imageUrl: item.imageUrl,
+            available: true,
+            featured: item.featured ?? false,
+          })
+          .returning();
+        console.log(`  Item created: ${row.name} → ${item.imageUrl}`);
+      }
     }
   }
 

@@ -10,13 +10,12 @@ const { loadWorkspaceEnv } = await import(loadEnvUrl);
 
 loadWorkspaceEnv(here, {
   override: true,
-  only: [
-    "DATABASE_URL",
-    "STRIPE_SECRET_KEY",
-    "API_PORT",
-    "NODE_ENV",
-    "LOG_LEVEL",
-  ],
+  only: ["API_PORT", "NODE_ENV", "LOG_LEVEL"],
+});
+// Prefer Replit Secrets / existing env; .env only fills gaps (never wipes secrets).
+loadWorkspaceEnv(here, {
+  override: false,
+  only: ["DATABASE_URL", "STRIPE_SECRET_KEY"],
 });
 
 process.env.NODE_ENV = process.env.NODE_ENV || "development";

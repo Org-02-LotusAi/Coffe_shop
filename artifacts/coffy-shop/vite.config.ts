@@ -12,7 +12,12 @@ const { loadWorkspaceEnv } = await import(
 );
 loadWorkspaceEnv(import.meta.dirname, {
   override: true,
-  only: ['PORT', 'BASE_PATH', 'API_PORT', 'VITE_STRIPE_PUBLISHABLE_KEY'],
+  only: ['PORT', 'BASE_PATH', 'API_PORT'],
+});
+// Prefer Replit Secrets / existing env for Stripe; .env fills in only if unset.
+loadWorkspaceEnv(import.meta.dirname, {
+  override: false,
+  only: ['VITE_STRIPE_PUBLISHABLE_KEY'],
 });
 
 const rawPort = process.env.PORT || '25197';

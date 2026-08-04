@@ -4,6 +4,7 @@ import { useListFeaturedMenuItems } from '@workspace/api-client-react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MenuItemCard } from '@/components/MenuItemCard';
+import { assetUrl } from '@/lib/assets';
 
 export default function HomePage() {
   const { data: featured = [], isLoading } = useListFeaturedMenuItems();
@@ -12,7 +13,7 @@ export default function HomePage() {
     <div>
       <section className="relative min-h-[88vh] w-full overflow-hidden">
         <img
-          src="/images/shop-interior.jpg"
+          src={assetUrl('/images/shop-interior.jpg')}
           alt="Coffy Shop interior with warm lighting and brick walls"
           className="absolute inset-0 h-full w-full object-cover"
         />

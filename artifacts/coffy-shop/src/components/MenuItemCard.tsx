@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
+import { assetUrl } from '@/lib/assets';
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('en-US', {
@@ -27,7 +28,7 @@ export function MenuItemCard({ item, index = 0 }: { item: MenuItem; index?: numb
       <div className="aspect-[4/3] overflow-hidden bg-muted">
         {item.imageUrl ? (
           <img
-            src={item.imageUrl}
+            src={assetUrl(item.imageUrl)}
             alt={item.name}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             loading="lazy"

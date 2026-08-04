@@ -1,45 +1,63 @@
-# [Project name]
+# Coffy Shop
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Coffee shop web app: menu, cart, and Stripe checkout.
 
-## Run & Operate
+## Run & Operate (local)
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+```powershell
+pnpm install
+
+# Postgres (Docker example on 5433)
+$env:DATABASE_URL = "postgresql://postgres:postgres@localhost:5433/coffy"
+pnpm --filter @workspace/db run push
+pnpm --filter @workspace/db run seed
+
+# API (uses API_PORT from .env, default 8080)
+pnpm --filter @workspace/api-server run dev
+
+# Frontend (uses PORT/BASE_PATH from .env)
+pnpm --filter @workspace/coffy-shop run dev
+```
+
+- App: http://127.0.0.1:25197/
+- API: http://127.0.0.1:8080/api/healthz
+- `pnpm run typecheck` — full typecheck
+- `pnpm --filter @workspace/db run seed` — upserts menu categories/items and **image URLs** (safe to re-run)
+
+## Replit Secrets (required for Stripe)
+
+Set in **Tools → Secrets**, then **Stop → Run** both API and web workflows (Secrets do not hot-reload):
+
+| Secret | Example |
+|--------|---------|
+| `DATABASE_URL` | Replit Postgres URL |
+| `STRIPE_SECRET_KEY` | `sk_test_…` |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | `pk_test_…` (must start with `VITE_`) |
+| `API_PORT` | `8080` |
+| `PORT` | web port from artifact (e.g. `25197`) |
+| `BASE_PATH` | `/` |
+
+After changing Secrets: restart API + Vite, then hard-refresh the browser.
+
+After syncing code that adds packages: `pnpm install` in the Replit shell.
+
+If menu images are missing but the Home hero works, re-run seed so `image_url` is backfilled:
+
+```bash
+pnpm --filter @workspace/db run seed
+```
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
-
-## Where things live
-
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
-
-## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Frontend: React + Vite + Tailwind
+- Payments: Stripe (test/sandbox)
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Do not use `npm`; use `pnpm`.
+- `PORT` is for Vite; `API_PORT` is for the API (avoids clashes).
+- Empty `.env` Stripe keys must not override Replit Secrets (loader skips empty / preserves existing secrets).
+- Seed is upsert-based — re-run it to refresh menu image paths on Replit.

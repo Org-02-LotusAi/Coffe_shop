@@ -3,6 +3,7 @@ import { Minus, Plus, Trash2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { formatPrice } from '@/components/MenuItemCard';
 import { Button } from '@/components/ui/button';
+import { assetUrl } from '@/lib/assets';
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, cartTotal, cartCount } = useCart();
@@ -34,7 +35,7 @@ export default function CartPage() {
             <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
               {line.menuItem.imageUrl && (
                 <img
-                  src={line.menuItem.imageUrl}
+                  src={assetUrl(line.menuItem.imageUrl)}
                   alt={line.menuItem.name}
                   className="h-full w-full object-cover"
                 />

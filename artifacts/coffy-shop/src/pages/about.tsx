@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { assetUrl } from '@/lib/assets';
 
 export default function AboutPage() {
   return (
@@ -31,7 +32,7 @@ export default function AboutPage() {
           className="overflow-hidden rounded-xl border border-border/70 shadow-sm"
         >
           <img
-            src="/images/shop-interior.jpg"
+            src={assetUrl('/images/shop-interior.jpg')}
             alt="Warm café interior with banquettes and Edison bulbs"
             className="aspect-[4/3] w-full object-cover"
           />
@@ -41,7 +42,7 @@ export default function AboutPage() {
       <section
         className="border-y border-border/60 bg-card/50"
         style={{
-          backgroundImage: 'url(/images/beans-texture.jpg)',
+          backgroundImage: `url(${assetUrl('/images/beans-texture.jpg')})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}

@@ -10,13 +10,11 @@ const { loadWorkspaceEnv } = await import(loadEnvUrl);
 
 loadWorkspaceEnv(here, {
   override: true,
-  only: [
-    "DATABASE_URL",
-    "STRIPE_SECRET_KEY",
-    "API_PORT",
-    "NODE_ENV",
-    "LOG_LEVEL",
-  ],
+  only: ["API_PORT", "NODE_ENV", "LOG_LEVEL"],
+});
+loadWorkspaceEnv(here, {
+  override: false,
+  only: ["DATABASE_URL", "STRIPE_SECRET_KEY"],
 });
 
 if (process.env.API_PORT) {

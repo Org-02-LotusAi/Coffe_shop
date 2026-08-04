@@ -2,11 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+const SECRET_KEY_RE = /(SECRET|PASSWORD|TOKEN|STRIPE)/i;
+
 /**
  * Load KEY=VALUE pairs from a .env file into process.env.
- * By default does not overwrite existing env vars.
- * Pass `override: true` to always apply file values.
- * Pass `only` to limit which keys are applied.
+ * - Empty values from the file never overwrite a non-empty process.env value
+ *   (protects Replit Secrets from blank `.env` lines).
+ * - Secret-like keys never overwrite an existing non-empty process.env value,
+ *   even when `override: true`.
+ * - Pass `override: true` to replace non-secret keys (e.g. PORT) from `.env`.
+ * - Pass `only` to limit which keys are applied.
  */
 export function loadEnvFile(filePath, { override = false, only } = {}) {
   if (!fs.existsSync(filePath)) return;
@@ -31,7 +36,16 @@ export function loadEnvFile(filePath, { override = false, only } = {}) {
       value = value.slice(1, -1);
     }
 
-    if (override || process.env[key] === undefined) {
+    const existing = process.env[key];
+    const hasExisting = existing !== undefined && existing !== "";
+
+    // Never wipe an existing env/secret with an empty .env value.
+    if (value === "" && hasExisting) continue;
+
+    const isSecretLike = SECRET_KEY_RE.test(key);
+    if (isSecretLike && hasExisting) continue;
+
+    if (override || existing === undefined) {
       process.env[key] = value;
     }
   }
