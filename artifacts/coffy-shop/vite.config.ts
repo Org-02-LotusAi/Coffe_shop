@@ -1,34 +1,32 @@
 import path from 'path';
+import { pathToFileURL } from 'node:url';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
-const rawPort = process.env.PORT;
+const workspaceRoot = path.resolve(import.meta.dirname, '../..');
+const { loadWorkspaceEnv } = await import(
+  pathToFileURL(path.join(workspaceRoot, 'scripts/load-env.mjs')).href
+);
+loadWorkspaceEnv(import.meta.dirname, {
+  override: true,
+  only: ['PORT', 'BASE_PATH', 'API_PORT', 'VITE_STRIPE_PUBLISHABLE_KEY'],
+});
 
-if (!rawPort) {
-  throw new Error(
-    'PORT environment variable is required but was not provided.',
-  );
-}
-
+const rawPort = process.env.PORT || '25197';
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    'BASE_PATH environment variable is required but was not provided.',
-  );
-}
+const basePath = process.env.BASE_PATH || '/';
 
 export default defineConfig({
   base: basePath,
+  envDir: workspaceRoot,
   plugins: [
     react(),
     tailwindcss(),
@@ -71,6 +69,13 @@ export default defineConfig({
     allowedHosts: true,
     fs: {
       strict: true,
+      allow: [workspaceRoot],
+    },
+    proxy: {
+      '/api': {
+        target: `http://localhost:${process.env.API_PORT || '8080'}`,
+        changeOrigin: true,
+      },
     },
   },
   preview: {
