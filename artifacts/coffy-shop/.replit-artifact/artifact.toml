@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Coffy Shop"
+description = "A coffee shop web application with a home page, about page, menu page listing all items by category, a shopping cart, and Stripe-powered checkout. Customers can browse the menu, add items to their cart, and pay online."
+version = "1.0.0"
+id = "artifacts/coffy-shop"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25197
+
+[services.development]
+run = "pnpm --filter @workspace/coffy-shop run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/coffy-shop", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/coffy-shop/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25197"
+BASE_PATH = "/"
