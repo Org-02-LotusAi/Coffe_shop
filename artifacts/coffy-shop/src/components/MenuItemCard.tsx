@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import type { MenuItem } from '@workspace/api-client-react';
+import type { MenuItem } from '@/lib/supabase';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';

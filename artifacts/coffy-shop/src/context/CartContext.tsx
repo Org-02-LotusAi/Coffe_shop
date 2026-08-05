@@ -6,7 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import type { MenuItem } from '@workspace/api-client-react';
+import type { MenuItem } from '@/lib/supabase';
 
 export interface CartLine {
   menuItem: MenuItem;

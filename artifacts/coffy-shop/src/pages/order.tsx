@@ -1,5 +1,5 @@
 import { Link, useParams } from 'wouter';
-import { getGetOrderQueryKey, useGetOrder } from '@workspace/api-client-react';
+import { useGetOrder } from '@/hooks/use-get-order';
 import { formatPrice } from '@/components/MenuItemCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,12 +8,7 @@ export default function OrderPage() {
   const params = useParams<{ id: string }>();
   const orderId = Number(params.id);
   const enabled = Number.isFinite(orderId) && orderId > 0;
-  const { data: order, isLoading, isError } = useGetOrder(orderId, {
-    query: {
-      queryKey: getGetOrderQueryKey(orderId),
-      enabled,
-    },
-  });
+  const { data: order, isLoading, isError } = useGetOrder(orderId, { enabled });
 
   if (isLoading) {
     return (

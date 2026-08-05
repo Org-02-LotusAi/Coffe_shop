@@ -1,101 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import {
-  useCreateOrder,
-  useCreatePaymentIntent,
-  useConfirmPayment,
-  type Order,
-} from '@workspace/api-client-react';
-import { loadStripe } from '@stripe/stripe-js';
-import {
-  Elements,
-  PaymentElement,
-  useElements,
-  useStripe,
-} from '@stripe/react-stripe-js';
+import { useCreateOrder } from '@/hooks/use-create-order';
 import { useCart } from '@/context/CartContext';
 import { formatPrice } from '@/components/MenuItemCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-
-const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
-const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
-
-function StripePayForm({
-  order,
-  paymentIntentId,
-  onPaid,
-}: {
-  order: Order;
-  paymentIntentId: string;
-  onPaid: () => void;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const confirmPayment = useConfirmPayment();
-  const { toast } = useToast();
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handlePay(e: React.FormEvent) {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-
-    setSubmitting(true);
-    try {
-      const result = await stripe.confirmPayment({
-        elements,
-        redirect: 'if_required',
-      });
-
-      if (result.error) {
-        toast({
-          title: 'Payment failed',
-          description: result.error.message ?? 'Please try again.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      await confirmPayment.mutateAsync({
-        data: { orderId: order.id, paymentIntentId },
-      });
-      onPaid();
-    } catch (err) {
-      toast({
-        title: 'Could not confirm payment',
-        description: err instanceof Error ? err.message : 'Unexpected error',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handlePay} className="space-y-6">
-      <PaymentElement />
-      <Button type="submit" size="lg" className="w-full" disabled={!stripe || submitting}>
-        {submitting ? 'Processing…' : `Pay ${formatPrice(order.total)}`}
-      </Button>
-    </form>
-  );
-}
+import type { Order } from '@/lib/supabase';
 
 export default function CheckoutPage() {
   const { items, cartTotal, cartCount, clearCart } = useCart();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const createOrder = useCreateOrder();
-  const createIntent = useCreatePaymentIntent();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
-  const [paymentUnavailable, setPaymentUnavailable] = useState(false);
 
   useEffect(() => {
     if (cartCount === 0 && !order) {
@@ -127,27 +49,11 @@ export default function CheckoutPage() {
 
     try {
       const created = await createOrder.mutateAsync({
-        data: {
-          customerName: name.trim(),
-          customerEmail: email.trim(),
-          items: lineItems,
-        },
+        customerName: name.trim(),
+        customerEmail: email.trim(),
+        items: lineItems,
       });
       setOrder(created);
-
-      try {
-        const intent = await createIntent.mutateAsync({
-          data: { orderId: created.id },
-        });
-        if (intent.clientSecret && publishableKey) {
-          setClientSecret(intent.clientSecret);
-          setPaymentIntentId(intent.paymentIntentId);
-        } else {
-          setPaymentUnavailable(true);
-        }
-      } catch {
-        setPaymentUnavailable(true);
-      }
     } catch (err) {
       toast({
         title: 'Could not create order',
@@ -158,11 +64,6 @@ export default function CheckoutPage() {
   }
 
   function finishWithoutPayment() {
-    clearCart();
-    if (order) setLocation(`/order/${order.id}`);
-  }
-
-  function finishPaid() {
     clearCart();
     if (order) setLocation(`/order/${order.id}`);
   }
@@ -212,28 +113,13 @@ export default function CheckoutPage() {
         </form>
       )}
 
-      {order && clientSecret && stripePromise && paymentIntentId && (
-        <div className="mt-10">
-          <p className="mb-4 text-sm text-muted-foreground">
-            Order #{order.id} created. Complete payment below.
-          </p>
-          <Elements stripe={stripePromise} options={{ clientSecret }}>
-            <StripePayForm
-              order={order}
-              paymentIntentId={paymentIntentId}
-              onPaid={finishPaid}
-            />
-          </Elements>
-        </div>
-      )}
-
-      {order && paymentUnavailable && (
+      {order && (
         <div className="mt-10 space-y-4 rounded-xl border border-border/70 bg-card p-6">
           <h2 className="font-display text-2xl">Order placed</h2>
           <p className="text-sm text-muted-foreground">
-            Order #{order.id} is saved as <span className="font-medium text-foreground">pending</span>.
-            Online payment is not configured on this environment (missing Stripe keys), so you can
-            finish without charging a card.
+            Order #{order.id} is saved as{' '}
+            <span className="font-medium text-foreground">pending</span>. You can
+            view your order confirmation below.
           </p>
           <Button size="lg" className="w-full" onClick={finishWithoutPayment}>
             View order confirmation

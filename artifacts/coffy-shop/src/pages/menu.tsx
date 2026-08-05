@@ -1,14 +1,19 @@
-import { useMemo, useState } from 'react';
-import { useListMenuCategories, useListMenuItems } from '@workspace/api-client-react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchMenuCategories, fetchMenuItems } from '@/lib/supabase';
 import { MenuItemCard } from '@/components/MenuItemCard';
 import { cn } from '@/lib/utils';
+import { useMemo, useState } from 'react';
 
 export default function MenuPage() {
   const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
-  const { data: categories = [], isLoading: categoriesLoading } = useListMenuCategories();
-  const { data: items = [], isLoading: itemsLoading } = useListMenuItems(
-    categoryId !== undefined ? { categoryId } : undefined,
-  );
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ['menu-categories'],
+    queryFn: fetchMenuCategories,
+  });
+  const { data: items = [], isLoading: itemsLoading } = useQuery({
+    queryKey: ['menu-items', categoryId],
+    queryFn: () => fetchMenuItems(categoryId),
+  });
 
   const sortedItems = useMemo(
     () => [...items].sort((a, b) => a.name.localeCompare(b.name)),

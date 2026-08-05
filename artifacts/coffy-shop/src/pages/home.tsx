@@ -1,13 +1,13 @@
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
-import { useListFeaturedMenuItems } from '@workspace/api-client-react';
+import { useFeaturedMenuItems } from '@/hooks/use-featured-menu-items';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MenuItemCard } from '@/components/MenuItemCard';
 import { assetUrl } from '@/lib/assets';
 
 export default function HomePage() {
-  const { data: featured = [], isLoading } = useListFeaturedMenuItems();
+  const { data: featured = [], isLoading } = useFeaturedMenuItems();
 
   return (
     <div>
