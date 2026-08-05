@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, menuCategoriesTable, menuItemsTable } from "@workspace/db";
+import { supabase } from "../lib/supabase";
 import {
   ListMenuCategoriesResponse,
   ListMenuItemsResponse,
@@ -13,66 +12,107 @@ import {
 
 const router: IRouter = Router();
 
+function mapItem(
+  item: {
+    id: number;
+    name: string;
+    description: string | null;
+    price: string;
+    category_id: number;
+    image_url: string | null;
+    available: boolean;
+    featured: boolean;
+  },
+  categoryName: string | null,
+) {
+  return {
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    price: parseFloat(item.price),
+    categoryId: item.category_id,
+    categoryName,
+    imageUrl: item.image_url,
+    available: item.available,
+    featured: item.featured,
+  };
+}
+
 router.get("/menu-categories", async (_req, res): Promise<void> => {
-  const categories = await db.select().from(menuCategoriesTable).orderBy(menuCategoriesTable.name);
-  res.json(ListMenuCategoriesResponse.parse(categories));
+  const { data, error } = await supabase
+    .from("menu_categories")
+    .select("*")
+    .order("name");
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const mapped = (data ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    description: c.description,
+  }));
+
+  res.json(ListMenuCategoriesResponse.parse(mapped));
 });
 
 router.get("/menu-items/featured", async (_req, res): Promise<void> => {
-  const items = await db
-    .select({
-      id: menuItemsTable.id,
-      name: menuItemsTable.name,
-      description: menuItemsTable.description,
-      price: menuItemsTable.price,
-      categoryId: menuItemsTable.categoryId,
-      categoryName: menuCategoriesTable.name,
-      imageUrl: menuItemsTable.imageUrl,
-      available: menuItemsTable.available,
-      featured: menuItemsTable.featured,
-    })
-    .from(menuItemsTable)
-    .leftJoin(menuCategoriesTable, eq(menuItemsTable.categoryId, menuCategoriesTable.id))
-    .where(and(eq(menuItemsTable.featured, true), eq(menuItemsTable.available, true)));
+  const { data: items, error } = await supabase
+    .from("menu_items")
+    .select("*, menu_categories(name)")
+    .eq("featured", true)
+    .eq("available", true);
 
-  const parsed = items.map((item) => ({
-    ...item,
-    price: parseFloat(item.price),
-  }));
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const parsed = (items ?? []).map((item) =>
+    mapItem(
+      item,
+      (item as { menu_categories: { name: string } | null }).menu_categories
+        ?.name ?? null,
+    ),
+  );
+
   res.json(ListFeaturedMenuItemsResponse.parse(parsed));
 });
 
 router.get("/menu-items", async (req, res): Promise<void> => {
   const queryParsed = ListMenuItemsQueryParams.safeParse(req.query);
-  const categoryId = queryParsed.success && queryParsed.data.categoryId
-    ? queryParsed.data.categoryId
-    : undefined;
+  const categoryId =
+    queryParsed.success && queryParsed.data.categoryId
+      ? queryParsed.data.categoryId
+      : undefined;
 
-  const conditions = [eq(menuItemsTable.available, true)];
+  let query = supabase
+    .from("menu_items")
+    .select("*, menu_categories(name)")
+    .eq("available", true);
+
   if (categoryId !== undefined) {
-    conditions.push(eq(menuItemsTable.categoryId, categoryId));
+    query = query.eq("category_id", categoryId);
   }
 
-  const items = await db
-    .select({
-      id: menuItemsTable.id,
-      name: menuItemsTable.name,
-      description: menuItemsTable.description,
-      price: menuItemsTable.price,
-      categoryId: menuItemsTable.categoryId,
-      categoryName: menuCategoriesTable.name,
-      imageUrl: menuItemsTable.imageUrl,
-      available: menuItemsTable.available,
-      featured: menuItemsTable.featured,
-    })
-    .from(menuItemsTable)
-    .leftJoin(menuCategoriesTable, eq(menuItemsTable.categoryId, menuCategoriesTable.id))
-    .where(and(...conditions));
+  const { data: items, error } = await query;
 
-  const parsed = items.map((item) => ({
-    ...item,
-    price: parseFloat(item.price),
-  }));
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const parsed = (items ?? []).map((item) =>
+    mapItem(
+      item,
+      (item as { menu_categories: { name: string } | null }).menu_categories
+        ?.name ?? null,
+    ),
+  );
+
   res.json(ListMenuItemsResponse.parse(parsed));
 });
 
@@ -83,57 +123,70 @@ router.get("/menu-items/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [item] = await db
-    .select({
-      id: menuItemsTable.id,
-      name: menuItemsTable.name,
-      description: menuItemsTable.description,
-      price: menuItemsTable.price,
-      categoryId: menuItemsTable.categoryId,
-      categoryName: menuCategoriesTable.name,
-      imageUrl: menuItemsTable.imageUrl,
-      available: menuItemsTable.available,
-      featured: menuItemsTable.featured,
-    })
-    .from(menuItemsTable)
-    .leftJoin(menuCategoriesTable, eq(menuItemsTable.categoryId, menuCategoriesTable.id))
-    .where(eq(menuItemsTable.id, params.data.id));
+  const { data: item, error } = await supabase
+    .from("menu_items")
+    .select("*, menu_categories(name)")
+    .eq("id", params.data.id)
+    .single();
 
-  if (!item) {
+  if (error || !item) {
     res.status(404).json({ error: "Menu item not found" });
     return;
   }
 
-  res.json(GetMenuItemResponse.parse({ ...item, price: parseFloat(item.price) }));
+  const mapped = mapItem(
+    item,
+    (item as { menu_categories: { name: string } | null }).menu_categories?.name ??
+      null,
+  );
+
+  res.json(GetMenuItemResponse.parse(mapped));
 });
 
 router.get("/store-stats", async (_req, res): Promise<void> => {
-  const allItems = await db
-    .select({
-      categoryName: menuCategoriesTable.name,
-      featured: menuItemsTable.featured,
-    })
-    .from(menuItemsTable)
-    .leftJoin(menuCategoriesTable, eq(menuItemsTable.categoryId, menuCategoriesTable.id));
+  const { data: items, error: itemsError } = await supabase
+    .from("menu_items")
+    .select("featured, menu_categories(name)");
 
-  const categories = await db.select().from(menuCategoriesTable);
+  if (itemsError) {
+    res.status(500).json({ error: itemsError.message });
+    return;
+  }
+
+  const { data: categories, error: catError } = await supabase
+    .from("menu_categories")
+    .select("id");
+
+  if (catError) {
+    res.status(500).json({ error: catError.message });
+    return;
+  }
+
+  const allItems = (items ?? []) as unknown as Array<{
+    featured: boolean;
+    menu_categories: { name: string } | null;
+  }>;
 
   const totalItems = allItems.length;
-  const totalCategories = categories.length;
+  const totalCategories = categories?.length ?? 0;
   const featuredCount = allItems.filter((i) => i.featured).length;
 
   const countsByCategory: Record<string, number> = {};
   for (const item of allItems) {
-    const cat = item.categoryName ?? "Uncategorized";
+    const cat = item.menu_categories?.name ?? "Uncategorized";
     countsByCategory[cat] = (countsByCategory[cat] ?? 0) + 1;
   }
-  const itemsPerCategory = Object.entries(countsByCategory).map(([categoryName, count]) => ({
-    categoryName,
-    count,
-  }));
+  const itemsPerCategory = Object.entries(countsByCategory).map(
+    ([categoryName, count]) => ({ categoryName, count }),
+  );
 
   res.json(
-    GetStoreStatsResponse.parse({ totalItems, totalCategories, featuredCount, itemsPerCategory })
+    GetStoreStatsResponse.parse({
+      totalItems,
+      totalCategories,
+      featuredCount,
+      itemsPerCategory,
+    }),
   );
 });
 

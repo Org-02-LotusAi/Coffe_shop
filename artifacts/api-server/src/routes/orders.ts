@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, ordersTable } from "@workspace/db";
+import { supabase } from "../lib/supabase";
 import {
   CreateOrderBody,
   CreateOrderResponse,
@@ -20,23 +19,34 @@ router.post("/orders", async (req, res): Promise<void> => {
   const { customerName, customerEmail, items } = parsed.data;
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  const [order] = await db
-    .insert(ordersTable)
-    .values({
-      customerName,
-      customerEmail,
+  const { data: order, error } = await supabase
+    .from("orders")
+    .insert({
+      customer_name: customerName,
+      customer_email: customerEmail,
       items,
       total: total.toFixed(2),
       status: "pending",
     })
-    .returning();
+    .select()
+    .single();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
 
   res.status(201).json(
     CreateOrderResponse.parse({
-      ...order,
+      id: order.id,
+      customerName: order.customer_name,
+      customerEmail: order.customer_email,
+      items: order.items,
       total: parseFloat(order.total),
-      createdAt: order.createdAt.toISOString(),
-    })
+      status: order.status,
+      stripePaymentIntentId: order.stripe_payment_intent_id,
+      createdAt: new Date(order.created_at).toISOString(),
+    }),
   );
 });
 
@@ -47,22 +57,28 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [order] = await db
-    .select()
-    .from(ordersTable)
-    .where(eq(ordersTable.id, params.data.id));
+  const { data: order, error } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", params.data.id)
+    .single();
 
-  if (!order) {
+  if (error || !order) {
     res.status(404).json({ error: "Order not found" });
     return;
   }
 
   res.json(
     GetOrderResponse.parse({
-      ...order,
+      id: order.id,
+      customerName: order.customer_name,
+      customerEmail: order.customer_email,
+      items: order.items,
       total: parseFloat(order.total),
-      createdAt: order.createdAt.toISOString(),
-    })
+      status: order.status,
+      stripePaymentIntentId: order.stripe_payment_intent_id,
+      createdAt: new Date(order.created_at).toISOString(),
+    }),
   );
 });
 

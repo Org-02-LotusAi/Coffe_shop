@@ -15,7 +15,7 @@ loadWorkspaceEnv(here, {
 // Prefer Replit Secrets / existing env; .env only fills gaps (never wipes secrets).
 loadWorkspaceEnv(here, {
   override: false,
-  only: ["DATABASE_URL", "STRIPE_SECRET_KEY"],
+  only: ["DATABASE_URL", "STRIPE_SECRET_KEY", "VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY", "SUPABASE_URL", "SUPABASE_ANON_KEY"],
 });
 
 process.env.NODE_ENV = process.env.NODE_ENV || "development";

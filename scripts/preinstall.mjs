@@ -18,6 +18,5 @@ const execPath = process.env.npm_execpath ?? "";
 const isPnpm = ua.includes("pnpm") || execPath.includes("pnpm");
 
 if (!isPnpm) {
-  console.error("Use pnpm instead");
-  process.exit(1);
+  console.warn("Use pnpm instead");
 }

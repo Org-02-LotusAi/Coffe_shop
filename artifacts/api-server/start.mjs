@@ -14,7 +14,7 @@ loadWorkspaceEnv(here, {
 });
 loadWorkspaceEnv(here, {
   override: false,
-  only: ["DATABASE_URL", "STRIPE_SECRET_KEY"],
+  only: ["DATABASE_URL", "STRIPE_SECRET_KEY", "VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY", "SUPABASE_URL", "SUPABASE_ANON_KEY"],
 });
 
 if (process.env.API_PORT) {

@@ -1,7 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
 import Stripe from "stripe";
-import { db, ordersTable } from "@workspace/db";
+import { supabase } from "../lib/supabase";
 import {
   CreatePaymentIntentBody,
   CreatePaymentIntentResponse,
@@ -15,7 +14,7 @@ const router: IRouter = Router();
 function getStripe(): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return null;
-  return new Stripe(key, { apiVersion: "2025-06-30.basil" });
+  return new Stripe(key, { apiVersion: "2026-07-29.dahlia" });
 }
 
 router.post("/payment/create-intent", async (req, res): Promise<void> => {
@@ -31,12 +30,13 @@ router.post("/payment/create-intent", async (req, res): Promise<void> => {
     return;
   }
 
-  const [order] = await db
-    .select()
-    .from(ordersTable)
-    .where(eq(ordersTable.id, parsed.data.orderId));
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", parsed.data.orderId)
+    .single();
 
-  if (!order) {
+  if (orderError || !order) {
     res.status(404).json({ error: "Order not found" });
     return;
   }
@@ -49,10 +49,10 @@ router.post("/payment/create-intent", async (req, res): Promise<void> => {
     metadata: { orderId: String(order.id) },
   });
 
-  await db
-    .update(ordersTable)
-    .set({ stripePaymentIntentId: paymentIntent.id })
-    .where(eq(ordersTable.id, order.id));
+  await supabase
+    .from("orders")
+    .update({ stripe_payment_intent_id: paymentIntent.id })
+    .eq("id", order.id);
 
   logger.info({ orderId: order.id, paymentIntentId: paymentIntent.id }, "Payment intent created");
 
@@ -83,13 +83,14 @@ router.post("/payment/confirm", async (req, res): Promise<void> => {
 
   const newStatus = paymentIntent.status === "succeeded" ? "paid" : "failed";
 
-  const [updated] = await db
-    .update(ordersTable)
-    .set({ status: newStatus, stripePaymentIntentId: paymentIntentId })
-    .where(eq(ordersTable.id, orderId))
-    .returning();
+  const { data: updated, error: updateError } = await supabase
+    .from("orders")
+    .update({ status: newStatus, stripe_payment_intent_id: paymentIntentId })
+    .eq("id", orderId)
+    .select("*")
+    .single();
 
-  if (!updated) {
+  if (updateError || !updated) {
     res.status(404).json({ error: "Order not found" });
     return;
   }
@@ -98,9 +99,14 @@ router.post("/payment/confirm", async (req, res): Promise<void> => {
 
   res.json(
     ConfirmPaymentResponse.parse({
-      ...updated,
+      id: updated.id,
+      customerName: updated.customer_name,
+      customerEmail: updated.customer_email,
+      items: updated.items,
       total: parseFloat(updated.total),
-      createdAt: updated.createdAt.toISOString(),
+      status: updated.status,
+      stripePaymentIntentId: updated.stripe_payment_intent_id,
+      createdAt: new Date(updated.created_at).toISOString(),
     })
   );
 });
